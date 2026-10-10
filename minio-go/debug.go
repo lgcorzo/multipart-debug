@@ -25,7 +25,10 @@ func handleOutput(v interface{}) {
 	if vstr, ok := v.(string); ok {
 		os.Stdout.WriteString(vstr)
 	} else {
-		out, _ := json.MarshalIndent(v, "", "  ")
+		out, err := json.MarshalIndent(v, "", "  ")
+		if err != nil {
+			log.Fatal(err)
+		}
 		os.Stdout.Write(out)
 	}
 }
@@ -263,7 +266,11 @@ func debugUploadPart(ctx *cli.Context) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fi, _ := f.Stat()
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		log.Fatal(err)
+	}
 	part, err := debugClient.PutObjectPart(context.Background(), bucketName, objectName, uploadID, partNum, f, fi.Size(), minio.PutObjectPartOptions{})
 	if err != nil {
 		log.Fatal(err)
@@ -279,6 +286,9 @@ func debugCompleteMultipart(ctx *cli.Context) {
 	var uparts []minio.CompletePart
 	for _, part := range parts {
 		split := strings.Split(part, ".")
+		if len(split) < 2 {
+			log.Fatalf("invalid part format %q, expected PART_NUMBER.MD5SUM", part)
+		}
 		partNum, err := strconv.Atoi(split[0])
 		if err != nil {
 			log.Fatal(err)
