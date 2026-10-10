@@ -263,7 +263,11 @@ func debugUploadPart(ctx *cli.Context) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fi, _ := f.Stat()
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		log.Fatal(err)
+	}
 	part, err := debugClient.PutObjectPart(context.Background(), bucketName, objectName, uploadID, partNum, f, fi.Size(), minio.PutObjectPartOptions{})
 	if err != nil {
 		log.Fatal(err)
@@ -279,6 +283,9 @@ func debugCompleteMultipart(ctx *cli.Context) {
 	var uparts []minio.CompletePart
 	for _, part := range parts {
 		split := strings.Split(part, ".")
+		if len(split) < 2 {
+			log.Fatalf("invalid part specifier %q (expected <number>.<etag>)", part)
+		}
 		partNum, err := strconv.Atoi(split[0])
 		if err != nil {
 			log.Fatal(err)
